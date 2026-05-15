@@ -12,6 +12,11 @@ display-name = "Counter"
 src = "contracts/src/Counter.tolk"
 depends = []
 
+[contracts.StonFiSwap]
+display-name = "StonFiSwap"
+src = "contracts/src/StonFiSwap.tolk"
+depends = []
+
 [test]
 
 [fmt]
@@ -21,6 +26,15 @@ ignore = []
 [scripts]
 deploy-emulation = "acton script contracts/scripts/deploy.tolk"
 deploy-testnet = "acton script contracts/scripts/deploy.tolk --net testnet"
+stonfi-swap-emulation = "acton script contracts/scripts/stonfi_swap.tolk"
+stonfi-swap-testnet = "acton script contracts/scripts/stonfi_swap.tolk --net testnet"
+stonfi-swap-testnet-tonconnect = "acton script contracts/scripts/stonfi_swap.tolk --net testnet --tonconnect"
+stonfi-swap-setup-emulation = "acton script contracts/scripts/stonfi_swap_setup.tolk"
+stonfi-swap-setup-testnet = "acton script contracts/scripts/stonfi_swap_setup.tolk --net testnet"
+stonfi-swap-setup-testnet-tonconnect = "acton script contracts/scripts/stonfi_swap_setup.tolk --net testnet --tonconnect"
+stonfi-swap-smoke-emulation = "acton script contracts/scripts/stonfi_swap_smoke.tolk"
+stonfi-swap-smoke-testnet = "acton script contracts/scripts/stonfi_swap_smoke.tolk --net testnet"
+stonfi-swap-smoke-testnet-tonconnect = "acton script contracts/scripts/stonfi_swap_smoke.tolk --net testnet --tonconnect"
 
 [import-mappings]
 acton = ".acton"
