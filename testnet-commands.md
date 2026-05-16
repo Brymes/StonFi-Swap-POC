@@ -1,3 +1,29 @@
+# Commands to Run on testnet the way i ran it check dump.txt for how i ran it 
+
+```bash
+
+acton wallet new --name deployer --version v5r1 --local
+acton wallet list --balance
+acton wallet airdrop deployer --net testnet
+acton run stonfi-swap-testnet
+acton wallet new --name deployer --version v5r1 --local
+acton wallet list --balance
+acton wallet airdrop deployer --net testnet
+acton run stonfi-swap-testnet
+npm run testnet:resolve-mode0 -- --contract-address kQBU_pkto2pLcYoN-2jnyzLneEhiwv4BaxRukTRp_JhZ74wi --owner-address kQCjVyUToBO9vnk1kEWBXQUR2RR5xomuy1N9GGkS0GH1xY1h --receiver-address kQCjVyUToBO9vnk1kEWBXQUR2RR5xomuy1N9GGkS0GH1xY1h
+npm run testnet:buy-tesreed -- 1
+npm list @ston-fi/sdk @ton/ton @ton/crypto
+npm run testnet:buy-tesreed -- 1
+touch scripts/testnet-mint-tesreed.ts
+acton wallet airdrop deployer --net testnet         
+npm run testnet:mint-tesreed
+acton wallet airdrop deployer --net testnet         
+npm run testnet:mint-tesreed
+npm run testnet:check-jetton-wallet -- --wallet-address kQCgfR8JX5TBjLomO6C3yTPXqlKl7L6HY6lJuD_ZeK8Cf0BJ --owner-address kQBU_pkto2pLcYoN-2jnyzLneEhiwv4BaxRukTRp_JhZ74wi --jetton-master-address kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5 --require-balance true
+npm run testnet:validate -- --contract-address kQBU_pkto2pLcYoN-2jnyzLneEhiwv4BaxRukTRp_JhZ74wi --receiver-address kQCjVyUToBO9vnk1kEWBXQUR2RR5xomuy1N9GGkS0GH1xY1h --route-modes 0
+```
+
+## Commands explained 
 
   1. Put your Toncenter testnet key in .env
 
