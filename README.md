@@ -29,11 +29,22 @@ npm run typecheck
 npm run build
 ```
 
+Wallet setup for local testnet broadcasts:
+
+```bash
+acton wallet new --name deployer --version v5r1 --local
+acton wallet import --name deployer --version v5r1 --local "<mnemonic words>"
+acton wallet list --balance
+acton wallet airdrop deployer --net testnet
+```
+
 Local emulation:
 
 ```bash
 acton run stonfi-swap-setup-emulation <preset args>
 acton run stonfi-swap-smoke-emulation <preset args> <routeMode> <queryId> <amount> <forwardTonAmount> <minOut> <txDeadline>
+acton run stonfi-swap-setup-existing-emulation <contractAddress> <preset args>
+acton run stonfi-swap-smoke-existing-emulation <contractAddress> <preset args> <routeMode> <queryId> <amount> <forwardTonAmount> <minOut> <txDeadline>
 ```
 
 Testnet broadcast:
@@ -42,11 +53,39 @@ Testnet broadcast:
 acton run stonfi-swap-testnet-tonconnect
 acton run stonfi-swap-setup-testnet-tonconnect <preset args>
 acton run stonfi-swap-smoke-testnet-tonconnect <preset args> <routeMode> <queryId> <amount> <forwardTonAmount> <minOut> <txDeadline>
+acton run stonfi-swap-setup-existing-testnet <contractAddress> <preset args>
+acton run stonfi-swap-smoke-existing-testnet <contractAddress> <preset args> <routeMode> <queryId> <amount> <forwardTonAmount> <minOut> <txDeadline>
 ```
 
 If you prefer a local wallet file instead of TON Connect, provide `wallets.toml` or `global.wallets.toml` with a `deployer` wallet entry and use the non-TON Connect aliases.
 
 For testnet broadcasts, set `TONCENTER_TESTNET_API_KEY` in `.env` or in your shell if it is not already available.
+
+## Testnet Harness
+
+The repo now includes a logged testnet harness under `scripts/testnet/`:
+
+```bash
+npm run testnet:validate -- --receiver-address <testnet-address>
+```
+
+What it does:
+
+- verifies the local wallet and Toncenter API key
+- runs `acton build`, `acton test`, `npm run typecheck`, and `npm run build`
+- deploys `StonFiSwap` once unless `--contract-address` is supplied
+- derives the contract-owned source jetton wallet from the TesREED minter
+- uses the STON.fi SDK to resolve the mode `0` router-side wallet
+- verifies the jetton wallet owner, master, and balance
+- runs the existing-contract setup/smoke commands and stores every command plus output in `build/testnet/<timestamp>/`
+
+For modes `1` and `2`, provide a route override file when you have a real multi-hop testnet path:
+
+```bash
+npm run testnet:validate -- \
+  --receiver-address <testnet-address> \
+  --route-overrides scripts/testnet/route-overrides.example.json
+```
 
 ## Notes
 

@@ -39,6 +39,11 @@ If you pass your personal jetton wallet as `sourceWalletAddress`, the contract c
 | [`contracts/scripts/stonfi_swap.tolk`](./contracts/scripts/stonfi_swap.tolk) | Deploy-only script |
 | [`contracts/scripts/stonfi_swap_setup.tolk`](./contracts/scripts/stonfi_swap_setup.tolk) | Deploy and store a route preset |
 | [`contracts/scripts/stonfi_swap_smoke.tolk`](./contracts/scripts/stonfi_swap_smoke.tolk) | Deploy, store a route preset, and execute one route mode |
+| [`contracts/scripts/stonfi_swap_setup_existing.tolk`](./contracts/scripts/stonfi_swap_setup_existing.tolk) | Store a route preset on an already deployed contract |
+| [`contracts/scripts/stonfi_swap_smoke_existing.tolk`](./contracts/scripts/stonfi_swap_smoke_existing.tolk) | Reuse an existing contract for setup + smoke |
+| [`scripts/testnet/run-testnet-validation.mjs`](./scripts/testnet/run-testnet-validation.mjs) | Logged end-to-end testnet harness |
+| [`scripts/testnet/resolve-mode0-route.mjs`](./scripts/testnet/resolve-mode0-route.mjs) | Derive the contract-owned source wallet and inspect the STON.fi SDK route |
+| [`scripts/testnet/check-jetton-wallet.mjs`](./scripts/testnet/check-jetton-wallet.mjs) | Verify source wallet owner, master, and balance |
 | [`Acton.toml`](./Acton.toml) | Script aliases, including testnet and TON Connect aliases |
 
 ## Prerequisites
@@ -60,6 +65,15 @@ Prepare testnet access:
 - source jettons held by the `StonFiSwap` contract-owned source jetton wallet
 
 For the easiest first broadcast, use the `*-tonconnect` aliases so Acton asks your wallet to approve the transaction.
+
+For a local wallet file flow, use the supported Acton commands instead of hand-editing `wallets.toml`:
+
+```bash
+acton wallet new --name deployer --version v5r1 --local
+acton wallet import --name deployer --version v5r1 --local "<mnemonic words>"
+acton wallet list --balance
+acton wallet airdrop deployer --net testnet
+```
 
 ## Step 1: Run Local Checks First
 
@@ -136,6 +150,13 @@ routePreset = null
 
 The setup and smoke scripts use the same initial storage shape. If you run them with the same owner wallet, they target the same `StonFiSwap` address you discovered here.
 
+For repeated live iterations after the first deploy, prefer the existing-contract aliases:
+
+```bash
+acton run stonfi-swap-setup-existing-testnet <contractAddress> <preset args>
+acton run stonfi-swap-smoke-existing-testnet <contractAddress> <preset args> <routeMode> <queryId> <amount> <forwardTonAmount> <minOut> <txDeadline>
+```
+
 ## Step 4: Fund The Contract-Owned Source Jetton Wallet
 
 Before executing a live swap, send testnet source jettons to the jetton wallet owned by `StonFiSwap.address`.
@@ -148,7 +169,37 @@ sourceWalletAddress = get_wallet_address(source_jetton_minter, StonFiSwap.addres
 
 Verify the wallet balance before moving on. The smoke script does not mint or fund jettons for you.
 
-## Step 5: Store A Route Preset
+The repo now includes a direct checker for this step:
+
+```bash
+npm run testnet:check-jetton-wallet -- \
+  --wallet-address <sourceWalletAddress> \
+  --owner-address <StonFiSwapAddress> \
+  --jetton-master-address kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5 \
+  --require-balance true
+```
+
+## Step 5: Resolve The Mode 0 Route
+
+Do not guess the router-side wallet. Resolve it from the STON.fi SDK and compare that against the contract-owned source jetton wallet:
+
+```bash
+npm run testnet:resolve-mode0 -- \
+  --contract-address <StonFiSwapAddress> \
+  --owner-address <ownerAddress> \
+  --receiver-address <receiverAddress>
+```
+
+That command:
+
+- derives `sourceWalletAddress = get_wallet_address(TesREED, StonFiSwap.address)`
+- builds the STON.fi jetton-to-jetton testnet route for TesREED -> TestBlue
+- asserts `SDK tx.to == sourceWalletAddress`
+- decodes the SDK jetton transfer body and extracts `routerWalletAddress`
+
+Save the JSON output. The harness uses the same flow automatically.
+
+## Step 6: Store A Route Preset
 
 The setup script targets the same deterministic contract address and stores the route preset:
 
@@ -184,7 +235,24 @@ acton run stonfi-swap-setup-testnet-tonconnect \
 
 The script prints the stored preset after reading it back from the contract. Confirm every printed address before running a smoke swap.
 
-## Step 6: Run A Testnet Smoke Swap
+After the first deploy, switch to the existing-contract alias so you do not spend another deploy transaction:
+
+```bash
+acton run stonfi-swap-setup-existing-testnet \
+  <contractAddress> \
+  <sourceWalletAddress> \
+  <routerWalletAddress> \
+  <firstHopReceiverAddress> \
+  <secondRouterWalletAddress> \
+  <receiverAddress> \
+  <referrerAddress> \
+  <refundAddress> \
+  <excessesAddress> \
+  <fwdGas> \
+  <refundFwdGas>
+```
+
+## Step 7: Run A Testnet Smoke Swap
 
 The smoke script targets the same deterministic contract address, stores the same route preset shape, and then executes one route mode.
 
@@ -241,7 +309,30 @@ acton run stonfi-swap-smoke-testnet-tonconnect \
 
 `1893456000` is `2030-01-01T00:00:00Z`. Replace it with a nearer deadline once the path works.
 
-## Step 7: Inspect The Result
+For repeated live runs, use the existing-contract alias:
+
+```bash
+acton run stonfi-swap-smoke-existing-testnet \
+  <contractAddress> \
+  <sourceWalletAddress> \
+  <routerWalletAddress> \
+  <firstHopReceiverAddress> \
+  <secondRouterWalletAddress> \
+  <receiverAddress> \
+  <referrerAddress> \
+  <refundAddress> \
+  <excessesAddress> \
+  <fwdGas> \
+  <refundFwdGas> \
+  <routeMode> \
+  <queryId> \
+  <amount> \
+  <forwardTonAmount> \
+  <minOut> \
+  <txDeadline>
+```
+
+## Step 8: Inspect The Result
 
 Check the trace printed by Acton and inspect the transaction in a TON testnet explorer.
 
@@ -276,6 +367,7 @@ If the transaction reaches `StonFiSwap` but fails at the source jetton wallet, r
 | `InvalidForwardTonAmount` | `forwardTonAmount` is zero |
 | `InvalidReferralFee` | Referral fee is invalid for the chosen route mode |
 | Jetton wallet rejects the transfer | `sourceWalletAddress` is not owned by `StonFiSwap.address` |
+| `SDK tx.to` does not match `sourceWalletAddress` | The route discovery loop is wrong; stop before broadcasting |
 | Router rejects or refunds | Wrong route wallets, expired deadline, too-high `minOut`, missing liquidity, or insufficient forward gas |
 
 ## Safer Iteration Loop
@@ -286,7 +378,29 @@ Use this order while debugging:
 acton build
 acton test
 acton run stonfi-swap-smoke-emulation <10 preset args> <routeMode> <queryId> <amount> <forwardTonAmount> <minOut> <txDeadline>
-acton run stonfi-swap-smoke-testnet-tonconnect <10 preset args> <routeMode> <queryId> <amount> <forwardTonAmount> <minOut> <txDeadline>
+acton run stonfi-swap-smoke-existing-testnet <contractAddress> <10 preset args> <routeMode> <queryId> <amount> <forwardTonAmount> <minOut> <txDeadline>
 ```
 
 Start with route mode `0`. Add route modes `1`, `2`, and `3` only after the simple route works with real testnet wallet ownership and liquidity.
+
+## Logged Harness
+
+If you want one command that runs the full loop and writes logs to disk:
+
+```bash
+npm run testnet:validate -- --receiver-address <testnet-address>
+```
+
+The harness writes:
+
+- `build/testnet/<timestamp>/manifest.json`
+- `build/testnet/<timestamp>/summary.md`
+- one log file per command, including exact command text and stdout/stderr
+
+By default it resolves a real mode `0` route and attempts live mode `0` and mode `3`. For modes `1` and `2`, provide a real route override file when you have one:
+
+```bash
+npm run testnet:validate -- \
+  --receiver-address <testnet-address> \
+  --route-overrides scripts/testnet/route-overrides.example.json
+```

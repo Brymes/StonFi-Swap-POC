@@ -10,6 +10,11 @@
     "fmt:check": "prettier --check .",
     "lint": "eslint --max-warnings 0 .",
     "lint:fix": "eslint --fix .",
+    "testnet:check-jetton-wallet": "node --env-file=.env scripts/testnet/check-jetton-wallet.mjs",
+    "testnet:resolve-mode0": "node --env-file=.env scripts/testnet/resolve-mode0-route.mjs",
+    "testnet:validate": "node --env-file=.env scripts/testnet/run-testnet-validation.mjs",
+    "testnet:buy-tesreed": "tsx scripts/testnet-buy-tesreed.ts",
+    "testnet:mint-tesreed": "tsx scripts/testnet-mint-tesreed.ts",
     "test": "echo \"no test specified\" && exit 0",
     "typecheck": "tsc --noEmit"
   },
@@ -29,17 +34,20 @@
     "buffer": "^6.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
     "lucide-react": "^1.11.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "tailwind-merge": "^3.5.0",
-    "tslib": "^2.8.1"
+    "tslib": "^2.8.1",
+    "tsx": "^4.22.0"
   },
   "overrides": {
     "axios": "^1.15.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@ston-fi/sdk": "^2.7.0",
     "@tailwindcss/vite": "^4.2.4",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
