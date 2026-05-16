@@ -12,7 +12,8 @@ import {
   parseModeList,
   projectRootFromHere,
   resolveDeadline,
-  toTestnetAddress,
+  toMainnetAddress,
+  valueOrDefault,
   writeJson,
   writeText,
 } from './common.mjs';
@@ -24,8 +25,7 @@ function parseJsonOutput(stdout, label) {
     return JSON.parse(stdout);
   } catch (error) {
     throw new Error(
-      `Failed to parse JSON output for ${label}: ${error instanceof Error ? error.message : String(error)
-      }`,
+      `Failed to parse JSON output for ${label}: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
@@ -91,15 +91,15 @@ function writeDisabledEmulationLog({ runDir, counter, mode, contractAddress }) {
     'status: disabled',
     '',
     'reason:',
-    'Local emulation is disabled for existing testnet contracts.',
-    'The existing contract address lives on TON testnet, but the local emulator does not automatically fork or import that remote account state.',
-    'Skipping this step lets the validation continue to the live testnet smoke command.',
+    'Local emulation is disabled for existing mainnet contracts.',
+    'The existing contract address lives on TON mainnet, but the local emulator does not import that remote account state.',
+    'Use the local gates and route resolver before broadcasting the live mainnet smoke command.',
   ].join('\n');
 
   writeText(logPath, `${message}\n`);
 
   process.stdout.write(
-    `\n# Skipping mode ${mode} emulation: existing testnet contract is not available in local emulator.\n`,
+    `\n# Skipping mode ${mode} emulation: existing mainnet contract is not available in local emulator.\n`,
   );
 
   return logPath;
@@ -130,6 +130,10 @@ function buildExecutionArgs(execution, routeMode) {
     execution.minOut,
     execution.txDeadline,
   ];
+}
+
+function mainnetScriptName(baseName, useTonconnect) {
+  return `${baseName}-mainnet${useTonconnect ? '-tonconnect' : ''}`;
 }
 
 function buildModePlan({ mode, resolvedRoute, overrides }) {
@@ -169,9 +173,9 @@ function buildModePlan({ mode, resolvedRoute, overrides }) {
     if (perMode.liveReady === true) {
       liveReady = true;
       liveReason = perMode.liveReason ?? 'Live route provided via overrides file.';
-    } else if (!overrides.modes?.[String(mode)]) {
+    } else {
       liveReady = false;
-      liveReason = 'No per-mode override supplied for cross-swap route discovery.';
+      liveReason = 'Mainnet cross-swap modes require an explicit per-mode override.';
     }
   }
 
@@ -190,16 +194,18 @@ function renderSummary({
   runDir,
   modeResults,
   resolvedRoute,
+  useTonconnect,
 }) {
   const lines = [
-    '# Testnet Validation Summary',
+    '# Mainnet Validation Summary',
     '',
     `- Run directory: \`${runDir}\``,
     `- Wallet name: \`${walletName}\``,
+    `- TonConnect: \`${useTonconnect ? 'enabled' : 'disabled'}\``,
     `- Owner address: \`${ownerAddress}\``,
     `- Contract address: \`${contractAddress}\``,
     `- Source wallet: \`${resolvedRoute.preset.sourceWalletAddress}\``,
-    `- Router wallet: \`${resolvedRoute.preset.routerWalletAddress}\``,
+    `- Router address: \`${resolvedRoute.preset.routerWalletAddress}\``,
     `- Token wallet 1: \`${resolvedRoute.preset.tokenWallet1Address}\``,
     '',
     '## Modes',
@@ -208,8 +214,7 @@ function renderSummary({
 
   for (const modeResult of modeResults) {
     lines.push(
-      `- Mode ${modeResult.mode}: emulation=${modeResult.emulationStatus}, live=${modeResult.liveStatus}${modeResult.liveReason ? ` (${modeResult.liveReason})` : ''
-      }`,
+      `- Mode ${modeResult.mode}: emulation=${modeResult.emulationStatus}, live=${modeResult.liveStatus}${modeResult.liveReason ? ` (${modeResult.liveReason})` : ''}`,
     );
   }
 
@@ -219,23 +224,32 @@ function renderSummary({
 async function main() {
   const args = parseArgs(process.argv.slice(2));
 
-  if (!process.env.TONCENTER_TESTNET_API_KEY) {
+  if (!process.env.TONCENTER_MAINNET_API_KEY) {
     throw new Error(
-      'TONCENTER_TESTNET_API_KEY is required. Run this harness with node --env-file=.env or export the key first.',
+      'TONCENTER_MAINNET_API_KEY is required. Run this harness with node --env-file=.env or export the key first.',
+    );
+  }
+
+  const routeModes = parseModeList(args['route-modes'] ?? DEFAULTS.routeModes);
+  const skipLive = args['skip-live'] === 'true';
+  const useTonconnect = args.tonconnect !== 'false';
+
+  if (!skipLive && args['confirm-mainnet'] !== 'true') {
+    throw new Error(
+      'Mainnet broadcast is disabled until you pass --confirm-mainnet true. Use --skip-live true for read-only route/log validation.',
     );
   }
 
   const runDir = path.join(
     PROJECT_ROOT,
     'build',
-    'testnet',
+    'mainnet',
     new Date().toISOString().replaceAll(':', '-'),
   );
 
   ensureDir(runDir);
 
   const routeOverrides = loadOptionalJson(args['route-overrides']);
-  const routeModes = parseModeList(args['route-modes'] ?? DEFAULTS.routeModes);
   const walletName = args['wallet-name'] ?? DEFAULTS.walletName;
   const logState = { counter: 1 };
 
@@ -255,15 +269,23 @@ async function main() {
 
   if (!walletRecord) {
     throw new Error(
-      `Wallet '${walletName}' was not found. Create it with 'acton wallet new --name ${walletName} --version v5r1 --local' or import it first.`,
+      `Wallet '${walletName}' was not found. Create or import it with Acton, then fund its mainnet address.`,
     );
   }
 
-  const ownerAddress = toTestnetAddress(extractWalletAddress(walletRecord));
-  const receiverAddress = args['receiver-address'] ? toTestnetAddress(args['receiver-address']) : ownerAddress;
-  const referrerAddress = args['referrer-address'] ? toTestnetAddress(args['referrer-address']) : ownerAddress;
-  const refundAddress = args['refund-address'] ? toTestnetAddress(args['refund-address']) : ownerAddress;
-  const excessesAddress = args['excesses-address'] ? toTestnetAddress(args['excesses-address']) : ownerAddress;
+  const ownerAddress = args['owner-address']
+    ? toMainnetAddress(args['owner-address'])
+    : toMainnetAddress(extractWalletAddress(walletRecord));
+  const receiverAddress = args['receiver-address']
+    ? toMainnetAddress(args['receiver-address'])
+    : ownerAddress;
+  const referrerAddress = args['referrer-address']
+    ? toMainnetAddress(args['referrer-address'])
+    : ownerAddress;
+  const refundAddress = args['refund-address'] ? toMainnetAddress(args['refund-address']) : ownerAddress;
+  const excessesAddress = args['excesses-address']
+    ? toMainnetAddress(args['excesses-address'])
+    : ownerAddress;
   const txDeadline = resolveDeadline(args);
 
   for (const [command, commandArgs] of [
@@ -281,15 +303,19 @@ async function main() {
     });
   }
 
-  let contractAddress = args['contract-address'] ? toTestnetAddress(args['contract-address']) : null;
+  let contractAddress = args['contract-address'] ? toMainnetAddress(args['contract-address']) : null;
 
   if (!contractAddress) {
+    if (skipLive) {
+      throw new Error('Pass --contract-address when using --skip-live true; deployment is a live mainnet action.');
+    }
+
     const deployRes = runLogged({
       runDir,
       counter: logState.counter++,
-      label: 'deploy-testnet',
+      label: 'deploy-mainnet',
       command: 'acton',
-      args: ['run', 'stonfi-swap-testnet'],
+      args: ['run', mainnetScriptName('stonfi-swap', useTonconnect)],
     });
 
     const match = deployRes.stdout.match(/Deployed StonFiSwap to (\S+)/);
@@ -298,7 +324,7 @@ async function main() {
       throw new Error(`Could not parse deployed contract address from ${deployRes.logPath}`);
     }
 
-    contractAddress = toTestnetAddress(match[1]);
+    contractAddress = toMainnetAddress(match[1]);
   }
 
   runLogged({
@@ -306,50 +332,59 @@ async function main() {
     counter: logState.counter++,
     label: 'rpc-contract-info',
     command: 'acton',
-    args: ['rpc', 'info', contractAddress, '--net', 'testnet'],
+    args: ['rpc', 'info', contractAddress, '--net', 'mainnet'],
   });
+
+  const resolveRouteArgs = [
+    '--env-file=.env',
+    'scripts/mainnet/resolve-mode0-route.mjs',
+    '--contract-address',
+    contractAddress,
+    '--owner-address',
+    ownerAddress,
+    '--receiver-address',
+    receiverAddress,
+    '--referrer-address',
+    referrerAddress,
+    '--refund-address',
+    refundAddress,
+    '--excesses-address',
+    excessesAddress,
+    '--fwd-gas',
+    valueOrDefault(args['fwd-gas'], DEFAULTS.fwdGas),
+    '--refund-fwd-gas',
+    valueOrDefault(args['refund-fwd-gas'], DEFAULTS.refundFwdGas),
+    '--amount',
+    valueOrDefault(args.amount, DEFAULTS.amount),
+    '--forward-ton-amount',
+    valueOrDefault(args['forward-ton-amount'], DEFAULTS.forwardTonAmount),
+    '--query-id',
+    valueOrDefault(args['query-id'], DEFAULTS.queryId),
+    '--tx-deadline',
+    txDeadline,
+    '--offer-jetton-address',
+    valueOrDefault(args['offer-jetton-address'], DEFAULTS.offerJettonAddress),
+    '--ask-asset-address',
+    valueOrDefault(args['ask-asset-address'], DEFAULTS.askAssetAddress),
+    '--slippage-tolerance',
+    valueOrDefault(args['slippage-tolerance'], DEFAULTS.slippageTolerance),
+    '--referral-fee-bps',
+    valueOrDefault(args['referral-fee-bps'], DEFAULTS.referralFeeBps),
+  ];
+
+  if (args['min-out'] !== undefined && args['min-out'] !== '') {
+    resolveRouteArgs.push('--min-out', args['min-out']);
+  }
+  if (args['pool-address'] !== undefined && args['pool-address'] !== '') {
+    resolveRouteArgs.push('--pool-address', args['pool-address']);
+  }
 
   const resolveRouteRes = runLogged({
     runDir,
     counter: logState.counter++,
     label: 'resolve-mode0-route',
     command: 'node',
-    args: [
-      '--env-file=.env',
-      'scripts/testnet/resolve-mode0-route.mjs',
-      '--contract-address',
-      contractAddress,
-      '--owner-address',
-      ownerAddress,
-      '--receiver-address',
-      receiverAddress,
-      '--referrer-address',
-      referrerAddress,
-      '--refund-address',
-      refundAddress,
-      '--excesses-address',
-      excessesAddress,
-      '--fwd-gas',
-      args['fwd-gas'] ?? DEFAULTS.fwdGas,
-      '--refund-fwd-gas',
-      args['refund-fwd-gas'] ?? DEFAULTS.refundFwdGas,
-      '--amount',
-      args.amount ?? DEFAULTS.amount,
-      '--forward-ton-amount',
-      args['forward-ton-amount'] ?? DEFAULTS.forwardTonAmount,
-      '--min-out',
-      args['min-out'] ?? DEFAULTS.minOut,
-      '--query-id',
-      args['query-id'] ?? DEFAULTS.queryId,
-      '--tx-deadline',
-      txDeadline,
-      '--offer-jetton-address',
-      args['offer-jetton-address'] ?? DEFAULTS.offerJettonAddress,
-      '--ask-jetton-address',
-      args['ask-jetton-address'] ?? DEFAULTS.askJettonAddress,
-      '--router-address',
-      args['router-address'] ?? DEFAULTS.routerAddress,
-    ],
+    args: resolveRouteArgs,
   });
 
   const resolvedRoute = parseJsonOutput(resolveRouteRes.stdout, 'resolve mode 0 route');
@@ -368,7 +403,7 @@ async function main() {
     command: 'node',
     args: [
       '--env-file=.env',
-      'scripts/testnet/check-jetton-wallet.mjs',
+      'scripts/mainnet/check-jetton-wallet.mjs',
       '--wallet-address',
       resolvedRoute.preset.sourceWalletAddress,
       '--owner-address',
@@ -385,18 +420,23 @@ async function main() {
     counter: logState.counter++,
     label: 'rpc-source-wallet-info',
     command: 'acton',
-    args: ['rpc', 'info', resolvedRoute.preset.sourceWalletAddress, '--net', 'testnet'],
+    args: ['rpc', 'info', resolvedRoute.preset.sourceWalletAddress, '--net', 'mainnet'],
   });
 
-  const presetArgs = buildPresetArgs(resolvedRoute.preset);
-
-  runLogged({
-    runDir,
-    counter: logState.counter++,
-    label: 'setup-existing-testnet',
-    command: 'acton',
-    args: ['run', 'stonfi-swap-setup-existing-testnet', contractAddress, ...presetArgs],
-  });
+  if (!skipLive) {
+    runLogged({
+      runDir,
+      counter: logState.counter++,
+      label: 'setup-existing-mainnet',
+      command: 'acton',
+      args: [
+        'run',
+        mainnetScriptName('stonfi-swap-setup-existing', useTonconnect),
+        contractAddress,
+        ...buildPresetArgs(resolvedRoute.preset),
+      ],
+    });
+  }
 
   const modeResults = [];
 
@@ -412,7 +452,7 @@ async function main() {
 
     let liveStatus = 'skipped';
 
-    if (modePlan.liveReady) {
+    if (!skipLive && modePlan.liveReady) {
       runLogged({
         runDir,
         counter: logState.counter++,
@@ -420,7 +460,7 @@ async function main() {
         command: 'acton',
         args: [
           'run',
-          'stonfi-swap-smoke-existing-testnet',
+          mainnetScriptName('stonfi-swap-smoke-existing', useTonconnect),
           contractAddress,
           ...buildPresetArgs(modePlan.preset),
           ...buildExecutionArgs(modePlan.execution, mode),
@@ -447,6 +487,7 @@ async function main() {
       runDir,
       modeResults,
       resolvedRoute,
+      useTonconnect,
     }),
   );
 

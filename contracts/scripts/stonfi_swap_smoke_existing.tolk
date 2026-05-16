@@ -9,6 +9,7 @@ fun main(
     contractAddress: address,
     sourceWalletAddress: address,
     routerWalletAddress: address,
+    tokenWallet1Address: address,
     firstHopReceiverAddress: address,
     secondRouterWalletAddress: address,
     receiverAddress: address,
@@ -33,6 +34,7 @@ fun main(
             routerWalletAddress,
             firstHopReceiverAddress,
         }.toCell(),
+        tokens: RoutePresetTokens { tokenWallet1Address }.toCell(),
         targets: RoutePresetTargets {
             secondRouterWalletAddress,
             receiverAddress,
@@ -50,11 +52,19 @@ fun main(
 
     val loadedRoutePreset = unwrapRoutePreset(contract.routePreset());
     val routes = loadedRoutePreset.loadRoutes();
+    val tokens = loadedRoutePreset.loadTokens();
     val targets = loadedRoutePreset.loadTargets();
     val fees = loadedRoutePreset.loadFees();
 
     if (routeMode == 0) {
-        val plan = makeSimpleSwapPlan(routes, targets, fees, minOut, txDeadline);
+        val plan = makeSimpleSwapPlan(
+            routes,
+            tokens,
+            targets,
+            fees,
+            minOut,
+            txDeadline,
+        );
         val txs = contract.sendExecuteSimpleSwapWithReferral(
             deployer.address,
             queryId,
@@ -63,11 +73,18 @@ fun main(
             amount,
             forwardTonAmount,
             plan,
-            { value: ton("0.2") },
+            { value: ton("0.5") },
         );
         println(txs.waitForTrace());
     } else if (routeMode == 1) {
-        val firstPlan = makeFirstHopSwapPlan(routes, targets, fees, minOut, txDeadline);
+        val firstPlan = makeFirstHopSwapPlan(
+            routes,
+            tokens,
+            targets,
+            fees,
+            minOut,
+            txDeadline,
+        );
         val secondPlan = makeSecondHopSwapPlan(
             targets,
             fees,
@@ -85,11 +102,18 @@ fun main(
             forwardTonAmount,
             firstPlan,
             secondPlan,
-            { value: ton("0.2") },
+            { value: ton("0.5") },
         );
         println(txs.waitForTrace());
     } else if (routeMode == 2) {
-        val firstPlan = makeFirstHopSwapPlan(routes, targets, fees, minOut, txDeadline);
+        val firstPlan = makeFirstHopSwapPlan(
+            routes,
+            tokens,
+            targets,
+            fees,
+            minOut,
+            txDeadline,
+        );
         val secondPlan = makeSecondHopSwapPlan(
             targets,
             fees,
@@ -107,11 +131,18 @@ fun main(
             forwardTonAmount,
             firstPlan,
             secondPlan,
-            { value: ton("0.2") },
+            { value: ton("0.5") },
         );
         println(txs.waitForTrace());
     } else if (routeMode == 3) {
-        val plan = makeRefundSwapPlan(routes, targets, fees, minOut, txDeadline);
+        val plan = makeRefundSwapPlan(
+            routes,
+            tokens,
+            targets,
+            fees,
+            minOut,
+            txDeadline,
+        );
         val txs = contract.sendExecuteRefundSwap(
             deployer.address,
             queryId,
@@ -120,7 +151,7 @@ fun main(
             amount,
             forwardTonAmount,
             plan,
-            { value: ton("0.2") },
+            { value: ton("0.5") },
         );
         println(txs.waitForTrace());
     } else {
@@ -130,13 +161,14 @@ fun main(
 
 fun makeSimpleSwapPlan(
     routes: RoutePresetRoutes,
+    tokens: RoutePresetTokens,
     targets: RoutePresetTargets,
     fees: RoutePresetFees,
     minOut: coins,
     txDeadline: uint64,
 ): SwapPlan {
     return SwapPlan {
-        tokenWallet1: routes.routerWalletAddress,
+        tokenWallet1: tokens.tokenWallet1Address,
         refundAddress: fees.refundAddress,
         excessesAddress: fees.excessesAddress,
         txDeadline,
@@ -155,13 +187,14 @@ fun makeSimpleSwapPlan(
 
 fun makeFirstHopSwapPlan(
     routes: RoutePresetRoutes,
+    tokens: RoutePresetTokens,
     targets: RoutePresetTargets,
     fees: RoutePresetFees,
     minOut: coins,
     txDeadline: uint64,
 ): SwapPlan {
     return SwapPlan {
-        tokenWallet1: routes.routerWalletAddress,
+        tokenWallet1: tokens.tokenWallet1Address,
         refundAddress: fees.refundAddress,
         excessesAddress: fees.excessesAddress,
         txDeadline,
@@ -206,13 +239,14 @@ fun makeSecondHopSwapPlan(
 
 fun makeRefundSwapPlan(
     routes: RoutePresetRoutes,
+    tokens: RoutePresetTokens,
     targets: RoutePresetTargets,
     fees: RoutePresetFees,
     minOut: coins,
     txDeadline: uint64,
 ): SwapPlan {
     return SwapPlan {
-        tokenWallet1: routes.routerWalletAddress,
+        tokenWallet1: tokens.tokenWallet1Address,
         refundAddress: fees.refundAddress,
         excessesAddress: fees.excessesAddress,
         txDeadline,

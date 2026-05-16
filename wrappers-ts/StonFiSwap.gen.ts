@@ -268,6 +268,39 @@ export const RoutePresetRoutes = {
 }
 
 /**
+ > struct RoutePresetTokens {
+ >     tokenWallet1Address: address
+ > }
+ */
+export interface RoutePresetTokens {
+    readonly $: 'RoutePresetTokens'
+    tokenWallet1Address: c.Address
+}
+
+export const RoutePresetTokens = {
+    create(args: {
+        tokenWallet1Address: c.Address
+    }): RoutePresetTokens {
+        return {
+            $: 'RoutePresetTokens',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): RoutePresetTokens {
+        return {
+            $: 'RoutePresetTokens',
+            tokenWallet1Address: s.loadAddress(),
+        }
+    },
+    store(self: RoutePresetTokens, b: c.Builder): void {
+        b.storeAddress(self.tokenWallet1Address);
+    },
+    toCell(self: RoutePresetTokens): c.Cell {
+        return makeCellFrom<RoutePresetTokens>(self, RoutePresetTokens.store);
+    }
+}
+
+/**
  > struct RoutePresetTargets {
  >     secondRouterWalletAddress: address
  >     receiverAddress: address
@@ -361,6 +394,7 @@ export const RoutePresetFees = {
 /**
  > struct RoutePreset {
  >     routes: Cell<RoutePresetRoutes>
+ >     tokens: Cell<RoutePresetTokens>
  >     targets: Cell<RoutePresetTargets>
  >     fees: Cell<RoutePresetFees>
  > }
@@ -368,6 +402,7 @@ export const RoutePresetFees = {
 export interface RoutePreset {
     readonly $: 'RoutePreset'
     routes: CellRef<RoutePresetRoutes>
+    tokens: CellRef<RoutePresetTokens>
     targets: CellRef<RoutePresetTargets>
     fees: CellRef<RoutePresetFees>
 }
@@ -375,6 +410,7 @@ export interface RoutePreset {
 export const RoutePreset = {
     create(args: {
         routes: CellRef<RoutePresetRoutes>
+        tokens: CellRef<RoutePresetTokens>
         targets: CellRef<RoutePresetTargets>
         fees: CellRef<RoutePresetFees>
     }): RoutePreset {
@@ -387,12 +423,14 @@ export const RoutePreset = {
         return {
             $: 'RoutePreset',
             routes: loadCellRef<RoutePresetRoutes>(s, RoutePresetRoutes.fromSlice),
+            tokens: loadCellRef<RoutePresetTokens>(s, RoutePresetTokens.fromSlice),
             targets: loadCellRef<RoutePresetTargets>(s, RoutePresetTargets.fromSlice),
             fees: loadCellRef<RoutePresetFees>(s, RoutePresetFees.fromSlice),
         }
     },
     store(self: RoutePreset, b: c.Builder): void {
         storeCellRef<RoutePresetRoutes>(self.routes, b, RoutePresetRoutes.store);
+        storeCellRef<RoutePresetTokens>(self.tokens, b, RoutePresetTokens.store);
         storeCellRef<RoutePresetTargets>(self.targets, b, RoutePresetTargets.store);
         storeCellRef<RoutePresetFees>(self.fees, b, RoutePresetFees.store);
     },
@@ -995,7 +1033,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class StonFiSwap implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECEQEABZMAART/APSkE/S88sgLAQIBYgIDBPDQ+JGRMOAg1ywi+tAAJI5FMdTU10z4ku1E0NMf+kjXCwAwUgPHBfLgZCLQ+kgx+kgx+gD6ANGBEAQCwgAS8vSBEAQBwgDy9MjLH/pSz4MTzMzMye1U4NcsIvrQAAzjAtcsIvrQABTjAtcsIvrQACzjAtcsIvrQABwEBQYHAgFIDxAB/DHTP/pI+kj6APoA10z4ku1E0NMfMfpIMMcF8uBkgRABI8IA8vSBEAMiwgDy9ND6SPpI+kjTP9TRIND6ADH6SDH6ADH0BPoAMfQEMdMP+kgx0YEQAQJuEvL0gRACAcFl8vSBEAIh0PoAMfpIMfoAMfQEMfoAMfQEMdMP+kgx0QgB/jHTP/pI+kj6APoA1NdM+JLtRNDTHzH6SDDHBfLgZIEQASTCAPL0gRADI8IA8vQB0PpI+kj6SNM/1NEF0PpI+kj6SNM/1NEp0PoAMfpIMfoAMfQE+gAx9AQx0w/6SDHRgRABAm4S8vSBEAIBwWXy9IEQAyrQ+gAx+kgx+gD0BDEJAf4x0z/6SPpI+gD6ANTXTPiS7UTQ0x8x+kgwxwXy4GSBEAEkwgDy9IEQAyPCAPL0AdD6SPpI+kjTP9TRBdD6SPpI+kjTP9TRKdD6ADH6SDH6ADH0BPoAMfQEMdMP+kgx0YEQAQJuEvL0gRACAcFl8vSBEAMq0PoAMfpIMfoA9AQxCwEU4wIwhA8BxwDy9A0A+MIA8vRtAdD6APpI+gD0BDH6APQE0w/6SNHIUAf6AhX6UlAD+gIV9ABQBPoCE/QAEssP+lLJIm3Iz5GZk3iqF/pSFfpSFPpSyz8SzMnIz5A+KfqWGMs/UAT6AhT6UhL6UhL0AAH6As+DEszJyM+FiBL6UnHPC27MyYBA+wAB/voAMfQEMdMPMfpIMdHCAPL0IND6ADH6SDH6ADH0BPoAMfQEMdMP+kgx0YEQAQJuEvL0gRACAcFl8vTIz5GnPGluFfpSE/pS+lLLP8zJBdD6APpI+gD0BDH6APQE0w/6SNHIUAf6AhX6UlAD+gIZ9ABQCPoCF/QAFssPFfpSySEKAIptyM+RmZN4qhb6UhT6UhP6UhTLP8zJyM+QPin6lhjLP1AE+gIU+lIT+lL0AAH6As+DEszJyM+FiBL6UnHPC27MyYBA+wAB/voAMfQEMdMPMfpIMdHCAPL0IND6ADH6SDH6ADH0BPoAMfQEMdMP+kgx0YEQAQJuEvL0gRACAcFl8vRtAdD6APpI+gD0BDH6APQE0w/6SNHIUAf6AhX6UlAD+gIV9ABQBPoCE/QAEssP+lLJyM+RmZN4qhX6UhP6UvpSyz/MyQUMAOzQ+gD6SPoA9AQx+gD0BNMP+kjRyFAH+gIV+lJQA/oCGfQAUAj6Ahf0ABbLDxX6UskhbcjPkZmTeKoW+lIU+lIT+lIUyz/MycjPkD4p+pYYyz9QBPoCFPpSE/pS9AAB+gLPgxLMycjPhYgS+lJxzwtuzMmAQPsAAfwx0z/6SPpI+gD6ANdM+JLtRNDTHzH6SDDHBfLgZIEQASPCAPL0gRADIsIA8vTQ+kj6SPpI0z/U0SDQ+gAx+kgx+gAx9AT6ADH0BDHTD/pIMdGBEAECbhLy9IEQAgHBZfL0gRACIdD6ADH6SDH6ADH0BDH6ADH0BDHTD/pIMdEOAPTy8m0B0PoA+kj6APQEMfoA9ATTD/pI0chQB/oCFfpSUAP6AhX0AFAE+gIT9AASyw/6UskibcjPkZmTeKoX+lIV+lIU+lLLPxLMycjPkD4p+pYYyz9QBPoCFPpSEvpSEvQAAfoCz4MSzMnIz4WIEvpScc8LbszJgED7AAA7uo3u1E0NMfMfpIMdMAAZfU1NdMgQCBlTBtbW1w4oABe4Ud7UTQ0x8x+kgwg=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECEQEABZgAART/APSkE/S88sgLAQIBYgIDBPbQ+JGRMOAg1ywi+tAAJI5IMdTU1NdM+JLtRNDTH/pI1wsAMFIDxwXy4GQi0PpIMfpIMfoA+gDRgRAEAsIAEvL0gRAEAcIA8vTIyx/6Us+DFMwSzMzMye1U4NcsIvrQAAzjAtcsIvrQABTjAtcsIvrQACzjAtcsIvrQABwEBQYHAgFIDxAB/DHTP/pI+kj6APoA10z4ku1E0NMfMfpIMMcF8uBkgRABI8IA8vSBEAMiwgDy9ND6SPpI+kjTP9TRIND6ADH6SDH6ADH0BPoAMfQEMdMP+kgx0YEQAQJuEvL0gRACAcFl8vSBEAIh0PoAMfpIMfoAMfQEMfoAMfQEMdMP+kgx0QgB/jHTP/pI+kj6APoA1NdM+JLtRNDTHzH6SDDHBfLgZIEQASTCAPL0gRADI8IA8vQB0PpI+kj6SNM/1NEF0PpI+kj6SNM/1NEp0PoAMfpIMfoAMfQE+gAx9AQx0w/6SDHRgRABAm4S8vSBEAIBwWXy9IEQAyrQ+gAx+kgx+gD0BDEJAf4x0z/6SPpI+gD6ANTXTPiS7UTQ0x8x+kgwxwXy4GSBEAEkwgDy9IEQAyPCAPL0AdD6SPpI+kjTP9TRBdD6SPpI+kjTP9TRKdD6ADH6SDH6ADH0BPoAMfQEMdMP+kgx0YEQAQJuEvL0gRACAcFl8vSBEAMq0PoAMfpIMfoA9AQxCwEU4wIwhA8BxwDy9A0A+MIA8vRtAdD6APpI+gD0BDH6APQE0w/6SNHIUAf6AhX6UlAD+gIV9ABQBPoCE/QAEssP+lLJIm3Iz5GZk3iqF/pSFfpSFPpSyz8SzMnIz5A+KfqWGMs/UAT6AhT6UhL6UhL0AAH6As+DEszJyM+FiBL6UnHPC27MyYBA+wAB/voAMfQEMdMPMfpIMdHCAPL0IND6ADH6SDH6ADH0BPoAMfQEMdMP+kgx0YEQAQJuEvL0gRACAcFl8vTIz5GnPGluFfpSE/pS+lLLP8zJBdD6APpI+gD0BDH6APQE0w/6SNHIUAf6AhX6UlAD+gIZ9ABQCPoCF/QAFssPFfpSySEKAIptyM+RmZN4qhb6UhT6UhP6UhTLP8zJyM+QPin6lhjLP1AE+gIU+lIT+lL0AAH6As+DEszJyM+FiBL6UnHPC27MyYBA+wAB/voAMfQEMdMPMfpIMdHCAPL0IND6ADH6SDH6ADH0BPoAMfQEMdMP+kgx0YEQAQJuEvL0gRACAcFl8vRtAdD6APpI+gD0BDH6APQE0w/6SNHIUAf6AhX6UlAD+gIV9ABQBPoCE/QAEssP+lLJyM+RmZN4qhX6UhP6UvpSyz/MyQUMAOzQ+gD6SPoA9AQx+gD0BNMP+kjRyFAH+gIV+lJQA/oCGfQAUAj6Ahf0ABbLDxX6UskhbcjPkZmTeKoW+lIU+lIT+lIUyz/MycjPkD4p+pYYyz9QBPoCFPpSE/pS9AAB+gLPgxLMycjPhYgS+lJxzwtuzMmAQPsAAfwx0z/6SPpI+gD6ANdM+JLtRNDTHzH6SDDHBfLgZIEQASPCAPL0gRADIsIA8vTQ+kj6SPpI0z/U0SDQ+gAx+kgx+gAx9AT6ADH0BDHTD/pIMdGBEAECbhLy9IEQAgHBZfL0gRACIdD6ADH6SDH6ADH0BDH6ADH0BDHTD/pIMdEOAPTy8m0B0PoA+kj6APQEMfoA9ATTD/pI0chQB/oCFfpSUAP6AhX0AFAE+gIT9AASyw/6UskibcjPkZmTeKoX+lIV+lIU+lLLPxLMycjPkD4p+pYYyz9QBPoCFPpSEvpSEvQAAfoCz4MSzMnIz4WIEvpScc8LbszJgED7AAA/uo3u1E0NMfMfpIMdMAAZjU1NTXTIEAgZYwbW1tbXDigAF7hR3tRNDTHzH6SDCA==');
 
     static Errors = {
         'Errors.NotOwner': 100,
@@ -1164,11 +1202,12 @@ export class StonFiSwap implements c.Contract {
     }
 
     async getRoutePreset(provider: ContractProvider): Promise<RoutePreset | null> {
-        const r = StackReader.fromGetMethod(4, await provider.get('routePreset', []));
-        return r.readWideNullable<RoutePreset>(4,
+        const r = StackReader.fromGetMethod(5, await provider.get('routePreset', []));
+        return r.readWideNullable<RoutePreset>(5,
             (r) => ({
                 $: 'RoutePreset',
                 routes: r.readCellRef<RoutePresetRoutes>(RoutePresetRoutes.fromSlice),
+                tokens: r.readCellRef<RoutePresetTokens>(RoutePresetTokens.fromSlice),
                 targets: r.readCellRef<RoutePresetTargets>(RoutePresetTargets.fromSlice),
                 fees: r.readCellRef<RoutePresetFees>(RoutePresetFees.fromSlice),
             })

@@ -10,6 +10,9 @@
     "fmt:check": "prettier --check .",
     "lint": "eslint --max-warnings 0 .",
     "lint:fix": "eslint --fix .",
+    "mainnet:check-jetton-wallet": "node --env-file=.env scripts/mainnet/check-jetton-wallet.mjs",
+    "mainnet:resolve-mode0": "node --env-file=.env scripts/mainnet/resolve-mode0-route.mjs",
+    "mainnet:validate": "node --env-file=.env scripts/mainnet/run-mainnet-validation.mjs",
     "testnet:check-jetton-wallet": "node --env-file=.env scripts/testnet/check-jetton-wallet.mjs",
     "testnet:resolve-mode0": "node --env-file=.env scripts/testnet/resolve-mode0-route.mjs",
     "testnet:validate": "node --env-file=.env scripts/testnet/run-testnet-validation.mjs",
@@ -47,6 +50,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@ston-fi/api": "^0.32.0",
     "@ston-fi/sdk": "^2.7.0",
     "@tailwindcss/vite": "^4.2.4",
     "@types/node": "^25.6.0",

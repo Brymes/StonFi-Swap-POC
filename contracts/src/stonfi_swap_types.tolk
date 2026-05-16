@@ -33,6 +33,10 @@ struct RoutePresetRoutes {
     firstHopReceiverAddress: address
 }
 
+struct RoutePresetTokens {
+    tokenWallet1Address: address
+}
+
 struct RoutePresetTargets {
     secondRouterWalletAddress: address
     receiverAddress: address
@@ -48,6 +52,7 @@ struct RoutePresetFees {
 
 struct RoutePreset {
     routes: Cell<RoutePresetRoutes>
+    tokens: Cell<RoutePresetTokens>
     targets: Cell<RoutePresetTargets>
     fees: Cell<RoutePresetFees>
 }
@@ -68,6 +73,10 @@ fun Storage.save(self) {
 
 fun RoutePreset.loadRoutes(self): RoutePresetRoutes {
     return self.routes.load();
+}
+
+fun RoutePreset.loadTokens(self): RoutePresetTokens {
+    return self.tokens.load();
 }
 
 fun RoutePreset.loadTargets(self): RoutePresetTargets {

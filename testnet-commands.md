@@ -128,4 +128,4 @@ npm run testnet:validate -- --contract-address kQBU_pkto2pLcYoN-2jnyzLneEhiwv4Ba
  
 › Summarize recent commits
  
-  gpt-5.4 high · ~/Repositories/Orgs/Perelyn/first_counter
+  gpt-5.4 high · ~/Repositories/Orgs/redacted/first_counter

@@ -33,8 +33,29 @@ function decodeJettonTransfer(cell) {
     customPayloadPresent: customPayload !== null,
     forwardTonAmount,
     forwardPayloadKind,
+    forwardPayload,
     forwardPayloadBits: forwardPayload.beginParse().remainingBits,
     forwardPayloadRefs: forwardPayload.beginParse().remainingRefs,
+  };
+}
+
+function decodeStonFiV2SwapPayload(cell) {
+  const slice = cell.beginParse();
+  const op = slice.loadUint(32);
+  const tokenWallet1 = slice.loadAddress();
+  const refundAddress = slice.loadAddress();
+  const excessesAddress = slice.loadAddress();
+  const txDeadline = slice.loadUintBig(64);
+  const routeBody = slice.loadRef();
+
+  return {
+    op,
+    tokenWallet1: toTestnetAddress(tokenWallet1),
+    refundAddress: toTestnetAddress(refundAddress),
+    excessesAddress: toTestnetAddress(excessesAddress),
+    txDeadline,
+    routeBodyBits: routeBody.beginParse().remainingBits,
+    routeBodyRefs: routeBody.beginParse().remainingRefs,
   };
 }
 
@@ -105,7 +126,9 @@ async function main() {
   }
 
   const transfer = decodeJettonTransfer(txParams.body);
+  const swapPayload = decodeStonFiV2SwapPayload(transfer.forwardPayload);
   const routerWalletAddress = transfer.destination;
+  const tokenWallet1Address = args['token-wallet-1-address'] ?? swapPayload.tokenWallet1;
   const firstHopReceiverAddress = args['first-hop-receiver-address'] ?? receiverAddress;
   const secondRouterWalletAddress = args['second-router-wallet-address'] ?? routerWalletAddress;
 
@@ -122,6 +145,7 @@ async function main() {
     preset: {
       sourceWalletAddress: resolvedSourceWallet,
       routerWalletAddress,
+      tokenWallet1Address: toTestnetAddress(tokenWallet1Address),
       firstHopReceiverAddress: toTestnetAddress(firstHopReceiverAddress),
       secondRouterWalletAddress: toTestnetAddress(secondRouterWalletAddress),
       receiverAddress: toTestnetAddress(receiverAddress),
@@ -153,6 +177,15 @@ async function main() {
         forwardPayloadKind: transfer.forwardPayloadKind,
         forwardPayloadBits: transfer.forwardPayloadBits,
         forwardPayloadRefs: transfer.forwardPayloadRefs,
+      },
+      swapPayload: {
+        op: `0x${swapPayload.op.toString(16)}`,
+        tokenWallet1: swapPayload.tokenWallet1,
+        refundAddress: swapPayload.refundAddress,
+        excessesAddress: swapPayload.excessesAddress,
+        txDeadline: swapPayload.txDeadline.toString(),
+        routeBodyBits: swapPayload.routeBodyBits,
+        routeBodyRefs: swapPayload.routeBodyRefs,
       },
     },
     modes: {

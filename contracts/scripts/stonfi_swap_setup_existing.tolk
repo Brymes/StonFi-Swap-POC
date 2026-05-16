@@ -9,6 +9,7 @@ fun main(
     contractAddress: address,
     sourceWalletAddress: address,
     routerWalletAddress: address,
+    tokenWallet1Address: address,
     firstHopReceiverAddress: address,
     secondRouterWalletAddress: address,
     receiverAddress: address,
@@ -27,6 +28,7 @@ fun main(
             routerWalletAddress,
             firstHopReceiverAddress,
         }.toCell(),
+        tokens: RoutePresetTokens { tokenWallet1Address }.toCell(),
         targets: RoutePresetTargets {
             secondRouterWalletAddress,
             receiverAddress,
@@ -40,11 +42,13 @@ fun main(
 
     val loadedRoutePreset = unwrapRoutePreset(contract.routePreset());
     val loadedRoutes = loadedRoutePreset.loadRoutes();
+    val loadedTokens = loadedRoutePreset.loadTokens();
     val loadedTargets = loadedRoutePreset.loadTargets();
     val loadedFees = loadedRoutePreset.loadFees();
     println("Updated route preset for {}", contract.address);
     println("Source wallet {}", loadedRoutes.sourceWalletAddress);
     println("Router wallet {}", loadedRoutes.routerWalletAddress);
+    println("Token wallet 1 {}", loadedTokens.tokenWallet1Address);
     println("First hop receiver {}", loadedRoutes.firstHopReceiverAddress);
     println("Second router wallet {}", loadedTargets.secondRouterWalletAddress);
     println("Final receiver {}", loadedTargets.receiverAddress);

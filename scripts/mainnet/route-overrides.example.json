@@ -1,0 +1,38 @@
+{
+  "modes": {
+    "1": {
+      "liveReady": true,
+      "liveReason": "Same-router cross-swap route supplied manually.",
+      "firstHopReceiverAddress": "EQ_FIRST_HOP_RECEIVER",
+      "tokenWallet1Address": "EQ_FIRST_ROUTE_TOKEN_WALLET",
+      "receiverAddress": "EQ_FINAL_RECEIVER",
+      "queryId": "43",
+      "amount": "100000",
+      "forwardTonAmount": "240000000",
+      "minOut": "1",
+      "txDeadline": "1893456000"
+    },
+    "2": {
+      "liveReady": true,
+      "liveReason": "Multi-router route supplied manually.",
+      "firstHopReceiverAddress": "EQ_FIRST_HOP_RECEIVER",
+      "tokenWallet1Address": "EQ_FIRST_ROUTE_TOKEN_WALLET",
+      "secondRouterWalletAddress": "EQ_SECOND_ROUTE_TOKEN_WALLET",
+      "receiverAddress": "EQ_FINAL_RECEIVER",
+      "queryId": "44",
+      "amount": "100000",
+      "forwardTonAmount": "240000000",
+      "minOut": "1",
+      "txDeadline": "1893456000"
+    },
+    "3": {
+      "liveReady": true,
+      "liveReason": "Refund route reuses the discovered mode 0 route.",
+      "queryId": "45",
+      "amount": "100000",
+      "forwardTonAmount": "240000000",
+      "minOut": "1",
+      "txDeadline": "1893456000"
+    }
+  }
+}

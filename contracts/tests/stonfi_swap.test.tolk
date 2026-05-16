@@ -17,12 +17,14 @@ get fun `test owner can update route preset`() {
     val (contract, deployer, referrer, _) = setupTest();
     val sourceWallet = randomAddress("source_wallet");
     val routerWallet = randomAddress("router_wallet");
+    val tokenWallet1 = randomAddress("token_wallet_1");
     val firstHopReceiver = randomAddress("first_hop_receiver_wallet");
     val secondRouterWallet = randomAddress("second_router_wallet");
     val receiver = randomAddress("receiver_wallet");
     val preset = makeRoutePreset(
         sourceWallet,
         routerWallet,
+        tokenWallet1,
         firstHopReceiver,
         secondRouterWallet,
         receiver,
@@ -39,10 +41,12 @@ get fun `test owner can update route preset`() {
 
     val loadedPreset = unwrapRoutePreset(contract.routePreset());
     val loadedRoutes = loadedPreset.loadRoutes();
+    val loadedTokens = loadedPreset.loadTokens();
     val loadedTargets = loadedPreset.loadTargets();
     val loadedFees = loadedPreset.loadFees();
     expect(loadedRoutes.sourceWalletAddress).toEqual(sourceWallet);
     expect(loadedRoutes.routerWalletAddress).toEqual(routerWallet);
+    expect(loadedTokens.tokenWallet1Address).toEqual(tokenWallet1);
     expect(loadedRoutes.firstHopReceiverAddress).toEqual(firstHopReceiver);
     expect(loadedTargets.secondRouterWalletAddress).toEqual(secondRouterWallet);
     expect(loadedTargets.receiverAddress).toEqual(receiver);
@@ -303,12 +307,14 @@ get fun `test non-owner cannot update route preset`() {
     val (contract, _, referrer, notDeployer) = setupTest();
     val sourceWallet = randomAddress("source_wallet");
     val routerWallet = randomAddress("router_wallet");
+    val tokenWallet1 = randomAddress("token_wallet_1");
     val firstHopReceiver = randomAddress("first_hop_receiver_wallet");
     val secondRouterWallet = randomAddress("second_router_wallet");
     val receiver = randomAddress("receiver_wallet");
     val preset = makeRoutePreset(
         sourceWallet,
         routerWallet,
+        tokenWallet1,
         firstHopReceiver,
         secondRouterWallet,
         receiver,
@@ -402,6 +408,7 @@ fun makeInvalidReferralPlan(owner: address, receiver: address, tokenWallet1: add
 fun makeRoutePreset(
     sourceWalletAddress: address,
     routerWalletAddress: address,
+    tokenWallet1Address: address,
     firstHopReceiverAddress: address,
     secondRouterWalletAddress: address,
     receiverAddress: address,
@@ -415,6 +422,7 @@ fun makeRoutePreset(
             routerWalletAddress,
             firstHopReceiverAddress,
         }.toCell(),
+        tokens: RoutePresetTokens { tokenWallet1Address }.toCell(),
         targets: RoutePresetTargets {
             secondRouterWalletAddress,
             receiverAddress,
